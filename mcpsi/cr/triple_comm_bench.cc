@@ -1,6 +1,7 @@
 #include <chrono>
-#include <cstring>
 #include <cstdint>
+#include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <future>
 #include <iostream>
@@ -119,7 +120,8 @@ internal::PTy ExchangePTy(const std::shared_ptr<Context>& ctx,
   return out;
 }
 
-BdozTy ExchangeBdozTy(const std::shared_ptr<Context>& ctx, const BdozTy& local) {
+BdozTy ExchangeBdozTy(const std::shared_ptr<Context>& ctx,
+                      const BdozTy& local) {
   BdozTy remote;
   remote.a = ExchangePTyVector(ctx, local.a);
   remote.a_pad = ExchangePTyVector(ctx, local.a_pad);
@@ -134,6 +136,14 @@ BdozTy ExchangeBdozTy(const std::shared_ptr<Context>& ctx, const BdozTy& local) 
 }
 
 void DumpTriples(const std::string& path, size_t rank, const BdozTy& triples) {
+  std::filesystem::path out_path(path);
+  if (out_path.has_parent_path()) {
+    std::error_code ec;
+    std::filesystem::create_directories(out_path.parent_path(), ec);
+    YACL_ENFORCE(!ec, "failed to create output directory {}: {}",
+                 out_path.parent_path().string(), ec.message());
+  }
+
   std::ofstream ofs(path, std::ios::out | std::ios::trunc);
   YACL_ENFORCE(ofs.good(), "failed to open triples output file: {}", path);
 
@@ -151,22 +161,28 @@ void DumpTriples(const std::string& path, size_t rank, const BdozTy& triples) {
 }
 
 void DumpKey(const std::string& path, size_t rank, const internal::PTy& key) {
+  std::filesystem::path out_path(path);
+  if (out_path.has_parent_path()) {
+    std::error_code ec;
+    std::filesystem::create_directories(out_path.parent_path(), ec);
+    YACL_ENFORCE(!ec, "failed to create output directory {}: {}",
+                 out_path.parent_path().string(), ec.message());
+  }
+
   std::ofstream ofs(path, std::ios::out | std::ios::trunc);
   YACL_ENFORCE(ofs.good(), "failed to open key output file: {}", path);
   ofs << "rank=" << rank << '\n';
   ofs << "bdoz_key=" << key.GetVal() << '\n';
 }
 
-std::shared_ptr<yacl::link::Context> MakeTcpLink(const std::string& sender_addr,
-                                                  uint32_t sender_port,
-                                                  const std::string& receiver_addr,
-                                                  uint32_t receiver_port,
-                                                  size_t rank) {
+std::shared_ptr<yacl::link::Context> MakeTcpLink(
+    const std::string& sender_addr, uint32_t sender_port,
+    const std::string& receiver_addr, uint32_t receiver_port, size_t rank) {
   yacl::link::ContextDesc desc;
   desc.parties.emplace_back("party0",
                             sender_addr + ":" + std::to_string(sender_port));
-  desc.parties.emplace_back("party1",
-                            receiver_addr + ":" + std::to_string(receiver_port));
+  desc.parties.emplace_back(
+      "party1", receiver_addr + ":" + std::to_string(receiver_port));
   desc.throttle_window_size = 0;
   desc.http_timeout_ms = 120 * 1000;
   auto lctx = yacl::link::FactoryBrpc().CreateContext(desc, rank);
@@ -182,19 +198,15 @@ void VerifyBdozTriples(const BdozTy& rank0, internal::PTy delta0,
     auto b = rank0.b[i] + rank1.b[i];
     YACL_ENFORCE(a * b == rank0.c[i] + rank1.c[i],
                  "bad BDOZ triple at index {}", i);
-    YACL_ENFORCE(rank0.peer_a_mac[i] ==
-                     rank1.a[i] * delta0 + rank1.a_pad[i],
+    YACL_ENFORCE(rank0.peer_a_mac[i] == rank1.a[i] * delta0 + rank1.a_pad[i],
                  "bad rank 0 peer a MAC at index {}", i);
-    YACL_ENFORCE(rank0.peer_b_mac[i] ==
-                     rank1.b[i] * delta0 + rank1.b_pad[i],
+    YACL_ENFORCE(rank0.peer_b_mac[i] == rank1.b[i] * delta0 + rank1.b_pad[i],
                  "bad rank 0 peer b MAC at index {}", i);
     YACL_ENFORCE(rank0.peer_c_mac[i] == rank1.c[i] * delta0 + rank1.c_pad[i],
                  "bad rank 0 peer c MAC at index {}", i);
-    YACL_ENFORCE(rank1.peer_a_mac[i] ==
-                     rank0.a[i] * delta1 + rank0.a_pad[i],
+    YACL_ENFORCE(rank1.peer_a_mac[i] == rank0.a[i] * delta1 + rank0.a_pad[i],
                  "bad rank 1 peer a MAC at index {}", i);
-    YACL_ENFORCE(rank1.peer_b_mac[i] ==
-                     rank0.b[i] * delta1 + rank0.b_pad[i],
+    YACL_ENFORCE(rank1.peer_b_mac[i] == rank0.b[i] * delta1 + rank0.b_pad[i],
                  "bad rank 1 peer b MAC at index {}", i);
     YACL_ENFORCE(rank1.peer_c_mac[i] == rank0.c[i] * delta1 + rank0.c_pad[i],
                  "bad rank 1 peer c MAC at index {}", i);

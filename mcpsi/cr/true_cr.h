@@ -166,7 +166,21 @@ class TrueCorrelation : public Correlation {
                        absl::Span<const internal::PTy> b,
                        absl::Span<const internal::PTy> c,
                        absl::Span<const internal::PTy> A,
-                       absl::Span<const internal::PTy> C);
+                       absl::Span<const internal::PTy> C,
+                       absl::Span<const internal::PTy> a_pad,
+                       absl::Span<const internal::PTy> peer_a_mac,
+                       absl::Span<const internal::PTy> b_pad,
+                       absl::Span<const internal::PTy> peer_b_mac,
+                       absl::Span<const internal::PTy> c_pad,
+                       absl::Span<const internal::PTy> peer_c_mac,
+                       absl::Span<const internal::PTy> A_pad,
+                       absl::Span<const internal::PTy> peer_A_mac,
+                       absl::Span<const internal::PTy> C_pad,
+                       absl::Span<const internal::PTy> peer_C_mac);
+  std::vector<internal::PTy> OpenAndCheckBdoz(
+      absl::Span<const internal::PTy> val,
+      absl::Span<const internal::PTy> pad,
+      absl::Span<const internal::PTy> peer_mac);
   // TODO:
   // internal::PTy SingleOpenAndCheck(const internal::ATy& in);
 };
