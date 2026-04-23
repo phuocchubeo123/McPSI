@@ -228,9 +228,11 @@ int main(int argc, char** argv) {
   size_t generated = 0;
   const size_t total = cl_nums.getValue();
   const size_t chunk = cl_chunk.getValue();
+  size_t chunk_idx = 0;
 
   while (generated < total) {
     const size_t cur = std::min(chunk, total - generated);
+    auto chunk_begin = std::chrono::high_resolution_clock::now();
     auto [chunk_triples, chunk_key] = GenerateBdozTriples(ctx, cur);
     if (generated == 0) {
       local_key = chunk_key;
@@ -239,6 +241,15 @@ int main(int argc, char** argv) {
     }
     AppendBdozTriples(local_triples, chunk_triples);
     generated += cur;
+    ++chunk_idx;
+    auto chunk_end = std::chrono::high_resolution_clock::now();
+    auto chunk_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        chunk_end - chunk_begin)
+                        .count();
+    std::cout << "chunk_progress rank=" << cl_rank.getValue()
+              << " chunk_idx=" << chunk_idx << " chunk_size=" << cur
+              << " generated=" << generated << "/" << total
+              << " chunk_ms=" << chunk_ms << '\n';
   }
 
   auto triple_time_end = std::chrono::high_resolution_clock::now();

@@ -55,3 +55,6 @@ external
 
 #brpc
 rpc_data
+
+#triples
+data/*
