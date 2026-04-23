@@ -78,7 +78,7 @@ mcpsi_cc_binary(
         ":cr",
         "//mcpsi/context:register",
         "//mcpsi/ss:ss_type",
-        "//mcpsi/utils:test_util",
         "//mcpsi/utils:vec_op",
+        "@llvm-project//llvm:Support",
     ],
 )

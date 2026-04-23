@@ -75,3 +75,35 @@ bazel run -c opt --distdir=./thirdparty //mcpsi/example:mc_psi
 ```
 
 Defaults come from `.env`: `SET0`, `SET1`, `CR`, `CACHE`, `THREAD`, `FAIRNESS`.
+
+## 7. Run `triple_comm_bench` (TCP, Two Terminals)
+
+Build it:
+
+```bash
+bazel build -c opt --distdir=./thirdparty //mcpsi/cr:triple_comm_bench
+```
+
+Run rank 0 (sender) in terminal 1:
+
+```bash
+bazel-bin/mcpsi/cr/triple_comm_bench \
+  --rank=0 \
+  --sender_addr=127.0.0.1 --sender_port=39530 \
+  --receiver_addr=127.0.0.1 --receiver_port=39531 \
+  --chunk=1024 --nums=10000 \
+  --triples_out=/tmp/triples_rank0.csv \
+  --key_out=/tmp/bdoz_key_rank0.txt
+```
+
+Run rank 1 (receiver) in terminal 2:
+
+```bash
+bazel-bin/mcpsi/cr/triple_comm_bench \
+  --rank=1 \
+  --sender_addr=127.0.0.1 --sender_port=39530 \
+  --receiver_addr=127.0.0.1 --receiver_port=39531 \
+  --chunk=1024 --nums=10000 \
+  --triples_out=/tmp/triples_rank1.csv \
+  --key_out=/tmp/bdoz_key_rank1.txt
+```
