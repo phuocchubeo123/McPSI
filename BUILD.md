@@ -17,7 +17,7 @@ bazel --version
 This repo uses `--distdir=./thirdparty` in `make`. A transitive dependency currently tries to fetch libsodium from a dead upstream URL, so pre-populate it locally:
 
 ```bash
-cd /home/ubuntu/McPSI
+cd /McPSI
 mkdir -p thirdparty
 curl -fL -o thirdparty/libsodium-1.0.18.tar.gz \
   https://github.com/jedisct1/libsodium/releases/download/1.0.18-RELEASE/libsodium-1.0.18.tar.gz
