@@ -1,4 +1,4 @@
-load("//bazel:mcpsi.bzl", "mcpsi_cc_library" , "mcpsi_cc_test")
+load("//bazel:mcpsi.bzl", "mcpsi_cc_binary", "mcpsi_cc_library", "mcpsi_cc_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -68,5 +68,17 @@ mcpsi_cc_test(
         "//mcpsi/context:register",
         "//mcpsi/utils:test_util",
         "//mcpsi/ss:ss_type",
+    ],
+)
+
+mcpsi_cc_binary(
+    name = "triple_comm_bench",
+    srcs = ["triple_comm_bench.cc"],
+    deps = [
+        ":cr",
+        "//mcpsi/context:register",
+        "//mcpsi/ss:ss_type",
+        "//mcpsi/utils:test_util",
+        "//mcpsi/utils:vec_op",
     ],
 )

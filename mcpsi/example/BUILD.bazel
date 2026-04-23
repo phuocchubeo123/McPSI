@@ -45,3 +45,15 @@ mcpsi_cc_binary(
         "@com_google_absl//absl/strings",
     ],
 )
+
+mcpsi_cc_binary(
+    name = "bench_multi",
+    srcs = ["bench_multi.cc"],
+    deps = [
+        "//mcpsi/context:register",
+        "//mcpsi/ss:protocol",
+        "@yacl//yacl/link",
+        "@llvm-project//llvm:Support",
+        "@com_google_absl//absl/strings",
+    ]
+)

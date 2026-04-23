@@ -505,6 +505,168 @@ void TrueCorrelation::ShuffleGet(absl::Span<internal::PTy> a,
   ot::OtHelper(ot_sender_, ot_receiver_).ShuffleRecv(conn, a, b, repeat);
 }
 
+void TrueCorrelation::BdozTriple(absl::Span<internal::PTy> a,
+                                 absl::Span<internal::PTy> a_pad,
+                                 absl::Span<internal::PTy> peer_a_mac,
+                                 absl::Span<internal::PTy> b,
+                                 absl::Span<internal::PTy> b_pad,
+                                 absl::Span<internal::PTy> peer_b_mac,
+                                 absl::Span<internal::PTy> c,
+                                 absl::Span<internal::PTy> c_pad,
+                                 absl::Span<internal::PTy> peer_c_mac) {
+  const size_t num = a.size();
+  YACL_ENFORCE(num == a_pad.size());
+  YACL_ENFORCE(num == peer_a_mac.size());
+  YACL_ENFORCE(num == b.size());
+  YACL_ENFORCE(num == b_pad.size());
+  YACL_ENFORCE(num == peer_b_mac.size());
+  YACL_ENFORCE(num == c.size());
+  YACL_ENFORCE(num == c_pad.size());
+  YACL_ENFORCE(num == peer_c_mac.size());
+
+  auto conn = ctx_->GetConnection();
+  internal::op::Rand(b);
+  std::vector<internal::PTy> A(num);
+  std::vector<internal::PTy> C(num);
+  ot::OtHelper(ot_sender_, ot_receiver_)
+      .BeaverTripleExtendWithChosenB(conn, a, b, c, absl::MakeSpan(A),
+                                     absl::MakeSpan(C));
+
+  CheckBdozTriple(a, b, c, absl::MakeConstSpan(A), absl::MakeConstSpan(C));
+
+  std::vector<internal::PTy> auth_input(num * 3);
+  auto auth_input_span = absl::MakeSpan(auth_input);
+  auto auth_input_a = auth_input_span.subspan(0 * num, num);
+  auto auth_input_b = auth_input_span.subspan(1 * num, num);
+  auto auth_input_c = auth_input_span.subspan(2 * num, num);
+  memcpy(auth_input_a.data(), a.data(), num * sizeof(internal::PTy));
+  memcpy(auth_input_b.data(), b.data(), num * sizeof(internal::PTy));
+  memcpy(auth_input_c.data(), c.data(), num * sizeof(internal::PTy));
+
+  std::vector<internal::PTy> auth_pad(num * 3);
+  std::vector<internal::PTy> auth_peer_mac(num * 3);
+  BdozAuth(absl::MakeConstSpan(auth_input), absl::MakeSpan(auth_pad),
+           absl::MakeSpan(auth_peer_mac));
+
+  memcpy(a_pad.data(), auth_pad.data(), num * sizeof(internal::PTy));
+  memcpy(b_pad.data(), auth_pad.data() + num, num * sizeof(internal::PTy));
+  memcpy(c_pad.data(), auth_pad.data() + 2 * num, num * sizeof(internal::PTy));
+  memcpy(peer_a_mac.data(), auth_peer_mac.data(),
+         num * sizeof(internal::PTy));
+  memcpy(peer_b_mac.data(), auth_peer_mac.data() + num,
+         num * sizeof(internal::PTy));
+  memcpy(peer_c_mac.data(), auth_peer_mac.data() + 2 * num,
+         num * sizeof(internal::PTy));
+}
+
+BdozTy TrueCorrelation::BdozTriple(size_t num) {
+  BdozTy ret(num);
+  BdozTriple(absl::MakeSpan(ret.a), absl::MakeSpan(ret.a_pad),
+             absl::MakeSpan(ret.peer_a_mac), absl::MakeSpan(ret.b),
+             absl::MakeSpan(ret.b_pad), absl::MakeSpan(ret.peer_b_mac),
+             absl::MakeSpan(ret.c), absl::MakeSpan(ret.c_pad),
+             absl::MakeSpan(ret.peer_c_mac));
+  return ret;
+}
+
+void TrueCorrelation::CheckBdozTriple(absl::Span<const internal::PTy> a,
+                                      absl::Span<const internal::PTy> b,
+                                      absl::Span<const internal::PTy> c,
+                                      absl::Span<const internal::PTy> A,
+                                      absl::Span<const internal::PTy> C) {
+  const size_t num = c.size();
+  YACL_ENFORCE(num == a.size());
+  YACL_ENFORCE(num == b.size());
+  YACL_ENFORCE(num == A.size());
+  YACL_ENFORCE(num == C.size());
+
+  auto conn = ctx_->GetConnection();
+  auto seed = conn->SyncSeed();
+  auto coef = internal::op::Rand(seed, num);
+
+  auto rA = internal::op::Mul(A, absl::MakeConstSpan(coef));
+  auto a_rA = internal::op::Add(a, absl::MakeConstSpan(rA));
+
+  auto rC = internal::op::Mul(C, absl::MakeConstSpan(coef));
+  auto c_rC = internal::op::Add(c, absl::MakeConstSpan(rC));
+
+  auto opened_a_buf = conn->Exchange(yacl::ByteContainerView(
+      a_rA.data(), num * sizeof(internal::PTy)));
+  YACL_ENFORCE(static_cast<uint64_t>(opened_a_buf.size()) ==
+               num * sizeof(internal::PTy));
+  auto remote_a = absl::MakeConstSpan(
+      reinterpret_cast<const internal::PTy*>(opened_a_buf.data()), num);
+  internal::op::AddInplace(absl::MakeSpan(a_rA), remote_a);
+
+  auto opened_c_buf = conn->Exchange(yacl::ByteContainerView(
+      c_rC.data(), num * sizeof(internal::PTy)));
+  YACL_ENFORCE(static_cast<uint64_t>(opened_c_buf.size()) ==
+               num * sizeof(internal::PTy));
+  auto remote_c = absl::MakeConstSpan(
+      reinterpret_cast<const internal::PTy*>(opened_c_buf.data()), num);
+  internal::op::AddInplace(absl::MakeSpan(c_rC), remote_c);
+
+  internal::op::MulInplace(absl::MakeSpan(a_rA), b);
+
+  auto product_buf = conn->Exchange(
+      yacl::ByteContainerView(a_rA.data(), num * sizeof(internal::PTy)));
+  YACL_ENFORCE(static_cast<uint64_t>(product_buf.size()) ==
+               num * sizeof(internal::PTy));
+  auto remote_product = absl::MakeConstSpan(
+      reinterpret_cast<const internal::PTy*>(product_buf.data()), num);
+  internal::op::AddInplace(absl::MakeSpan(a_rA), remote_product);
+
+  for (size_t i = 0; i < num; ++i) {
+    YACL_ENFORCE(c_rC[i] == a_rA[i], "{} : sacrificed c is {}", i,
+                 c_rC[i].GetVal());
+  }
+}
+
+void TrueCorrelation::BdozAuth(absl::Span<const internal::PTy> input,
+                               absl::Span<internal::PTy> input_pad,
+                               absl::Span<internal::PTy> peer_input_mac) {
+  const size_t num = input.size();
+  YACL_ENFORCE(num == input_pad.size());
+  YACL_ENFORCE(num == peer_input_mac.size());
+
+  auto recv_and_send_diff = [&] {
+    std::vector<internal::PTy> a(num);
+    std::vector<internal::PTy> b(num);
+    vole_receiver_->rrecv(absl::MakeSpan(a), absl::MakeSpan(b));
+    auto diff = internal::op::Sub(input, absl::MakeConstSpan(a));
+    auto conn = ctx_->GetConnection();
+    conn->SendAsync(
+        conn->NextRank(),
+        yacl::ByteContainerView(diff.data(),
+                                diff.size() * sizeof(internal::PTy)),
+        "BdozAuth:diff");
+    memcpy(input_pad.data(), b.data(), num * sizeof(internal::PTy));
+  };
+
+  auto send_and_recv_diff = [&] {
+    std::vector<internal::PTy> c(num);
+    vole_sender_->rsend(absl::MakeSpan(c));
+
+    auto conn = ctx_->GetConnection();
+    auto recv_buf = conn->Recv(conn->NextRank(), "BdozAuth:diff");
+    YACL_ENFORCE(static_cast<uint64_t>(recv_buf.size()) ==
+                 num * sizeof(internal::PTy));
+    auto diff = absl::MakeConstSpan(
+        reinterpret_cast<const internal::PTy*>(recv_buf.data()), num);
+    auto scaled_diff = internal::op::ScalarMul(key_, diff);
+    internal::op::Add(absl::MakeConstSpan(c),
+                      absl::MakeConstSpan(scaled_diff), peer_input_mac);
+  };
+
+  if (ctx_->GetRank() == 0) {
+    recv_and_send_diff();
+    send_and_recv_diff();
+  } else {
+    send_and_recv_diff();
+    recv_and_send_diff();
+  }
+}
+
 void TrueCorrelation::AuthSet(absl::Span<const internal::PTy> in,
                               absl::Span<internal::ATy> out) {
   RandomSet(out);

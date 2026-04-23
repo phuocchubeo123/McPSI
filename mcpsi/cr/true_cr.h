@@ -143,11 +143,30 @@ class TrueCorrelation : public Correlation {
   void ShuffleGet(absl::Span<internal::PTy> a, absl::Span<internal::PTy> b,
                   size_t repeat = 1) override;
 
+  void BdozTriple(absl::Span<internal::PTy> a,
+                  absl::Span<internal::PTy> a_pad,
+                  absl::Span<internal::PTy> peer_a_mac,
+                  absl::Span<internal::PTy> b,
+                  absl::Span<internal::PTy> b_pad,
+                  absl::Span<internal::PTy> peer_b_mac,
+                  absl::Span<internal::PTy> c,
+                  absl::Span<internal::PTy> c_pad,
+                  absl::Span<internal::PTy> peer_c_mac);
+  BdozTy BdozTriple(size_t num);
+
  private:
   void AuthSet(absl::Span<const internal::PTy> in,
                absl::Span<internal::ATy> out);
   void AuthGet(absl::Span<internal::ATy> out);
   std::vector<internal::PTy> OpenAndCheck(absl::Span<const internal::ATy> in);
+  void BdozAuth(absl::Span<const internal::PTy> input,
+                absl::Span<internal::PTy> input_pad,
+                absl::Span<internal::PTy> peer_input_mac);
+  void CheckBdozTriple(absl::Span<const internal::PTy> a,
+                       absl::Span<const internal::PTy> b,
+                       absl::Span<const internal::PTy> c,
+                       absl::Span<const internal::PTy> A,
+                       absl::Span<const internal::PTy> C);
   // TODO:
   // internal::PTy SingleOpenAndCheck(const internal::ATy& in);
 };

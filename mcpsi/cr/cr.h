@@ -26,6 +26,32 @@ struct BeaverTy {
   }
 };
 
+struct BdozTy {
+  // Local additive shares of a, b, c where c = a * b.
+  std::vector<internal::PTy> a;
+  std::vector<internal::PTy> a_pad;
+  std::vector<internal::PTy> peer_a_mac;
+  std::vector<internal::PTy> b;
+  std::vector<internal::PTy> b_pad;
+  std::vector<internal::PTy> peer_b_mac;
+  std::vector<internal::PTy> c;
+  std::vector<internal::PTy> c_pad;
+  std::vector<internal::PTy> peer_c_mac;
+
+  BdozTy() { ; }
+  BdozTy(uint32_t n) {
+    a.resize(n);
+    a_pad.resize(n);
+    peer_a_mac.resize(n);
+    b.resize(n);
+    b_pad.resize(n);
+    peer_b_mac.resize(n);
+    c.resize(n);
+    c_pad.resize(n);
+    peer_c_mac.resize(n);
+  }
+};
+
 struct DyBeaverSetTy {
   // half beaverTriple
   std::vector<internal::ATy> a;

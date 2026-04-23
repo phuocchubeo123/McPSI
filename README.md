@@ -134,3 +134,34 @@ docker start mcpsi-dev          # start
 docker exec -it mcpsi-dev bash  # launch the terminal
 docker stop mcpsi-dev           # stop
 ```
+
+
+## Guide to install bazel and make this thing run
+
+This works on aws machine c5.something.
+
+### Install Bazelisk as system-wide bazel binary:
+
+```bash
+# Download the latest Bazelisk release for Linux
+curl -LO "https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64"
+
+# Make it executable
+chmod +x bazelisk-linux-amd64
+
+# Copy it to /usr/local/bin/bazel (requires sudo)
+sudo cp bazelisk-linux-amd64 /usr/local/bin/bazel
+
+# Verify installation
+bazel version
+
+# Clean up downloaded file
+rm bazelisk-linux-amd64
+```
+
+
+Also need:
+```
+sudo apt install cmake
+sudo apt-get install ninja-build
+```
