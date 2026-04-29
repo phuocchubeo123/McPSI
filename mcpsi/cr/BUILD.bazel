@@ -80,5 +80,6 @@ mcpsi_cc_binary(
         "//mcpsi/ss:ss_type",
         "//mcpsi/utils:vec_op",
         "@llvm-project//llvm:Support",
+        "@yacl//yacl/utils:parallel",
     ],
 )

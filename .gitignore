@@ -58,3 +58,7 @@ rpc_data
 
 #triples
 data/*
+
+# exp
+test_wan_script.sh
+*.log

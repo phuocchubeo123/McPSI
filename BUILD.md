@@ -91,7 +91,7 @@ bazel-bin/mcpsi/cr/triple_comm_bench \
   --rank=0 \
   --sender_addr=127.0.0.1 --sender_port=39530 \
   --receiver_addr=127.0.0.1 --receiver_port=39531 \
-  --chunk=1024 --nums=10000 \
+  --chunk=1024 --nums=10000 --thread=1 \
   --triples_out=/tmp/triples_rank0.csv \
   --key_out=/tmp/bdoz_key_rank0.txt
 ```
@@ -103,7 +103,9 @@ bazel-bin/mcpsi/cr/triple_comm_bench \
   --rank=1 \
   --sender_addr=127.0.0.1 --sender_port=39530 \
   --receiver_addr=127.0.0.1 --receiver_port=39531 \
-  --chunk=1024 --nums=10000 \
+  --chunk=1024 --nums=10000 --thread=1 \
   --triples_out=/tmp/triples_rank1.csv \
   --key_out=/tmp/bdoz_key_rank1.txt
 ```
+
+`--thread` controls per-party thread count (default `1`).

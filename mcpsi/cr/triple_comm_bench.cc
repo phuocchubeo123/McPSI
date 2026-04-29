@@ -15,6 +15,7 @@
 #include "mcpsi/cr/true_cr.h"
 #include "mcpsi/utils/vec_op.h"
 #include "yacl/link/link.h"
+#include "yacl/utils/parallel.h"
 
 namespace {
 
@@ -40,6 +41,8 @@ llvm::cl::opt<uint32_t> cl_chunk("chunk", llvm::cl::init(1024),
                                  llvm::cl::desc("triples generated per chunk"));
 llvm::cl::opt<uint32_t> cl_nums("nums", llvm::cl::init(10000),
                                 llvm::cl::desc("total triples to generate"));
+llvm::cl::opt<uint32_t> cl_thread("thread", llvm::cl::init(1),
+                                  llvm::cl::desc("the number of threads"));
 llvm::cl::opt<std::string> cl_triples_out(
     "triples_out", llvm::cl::Required,
     llvm::cl::desc("path to write generated BDOZ triples"));
@@ -220,6 +223,9 @@ int main(int argc, char** argv) {
   YACL_ENFORCE(cl_rank.getValue() <= 1, "rank must be 0 or 1");
   YACL_ENFORCE(cl_chunk.getValue() > 0, "chunk must be positive");
   YACL_ENFORCE(cl_nums.getValue() > 0, "nums must be positive");
+  YACL_ENFORCE(cl_thread.getValue() > 0, "thread must be positive");
+
+  yacl::set_num_threads(cl_thread.getValue());
 
   auto lctx = MakeTcpLink(cl_sender_addr.getValue(), cl_sender_port,
                           cl_receiver_addr.getValue(), cl_receiver_port,
@@ -277,6 +283,7 @@ int main(int argc, char** argv) {
   std::cout << "rank=" << cl_rank.getValue() << '\n';
   std::cout << "triples=" << total << '\n';
   std::cout << "chunk=" << chunk << '\n';
+  std::cout << "threads=" << yacl::get_num_threads() << '\n';
   std::cout << "setup_ms=" << setup_ms << '\n';
   PrintStats("setup", cl_rank.getValue(), Diff(setup_end, setup_begin));
   std::cout << "bdoz_triple_generation_ms=" << triple_ms << '\n';
