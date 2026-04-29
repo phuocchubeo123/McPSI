@@ -225,19 +225,42 @@ int main(int argc, char** argv) {
   YACL_ENFORCE(cl_nums.getValue() > 0, "nums must be positive");
   YACL_ENFORCE(cl_thread.getValue() > 0, "thread must be positive");
 
+  const size_t rank = cl_rank.getValue();
+  const auto run_begin = std::chrono::high_resolution_clock::now();
+  auto log_stage = [&](const char* event) {
+    const auto now = std::chrono::high_resolution_clock::now();
+    const auto elapsed_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - run_begin)
+            .count();
+    std::cout << "stage rank=" << rank << " elapsed_ms=" << elapsed_ms
+              << " event=" << event << '\n';
+  };
+
   yacl::set_num_threads(cl_thread.getValue());
+  log_stage("run_start");
+  std::cout << "config rank=" << rank << " sender=" << cl_sender_addr.getValue()
+            << ":" << cl_sender_port.getValue()
+            << " receiver=" << cl_receiver_addr.getValue() << ":"
+            << cl_receiver_port.getValue() << " nums=" << cl_nums.getValue()
+            << " chunk=" << cl_chunk.getValue()
+            << " thread=" << cl_thread.getValue() << '\n';
 
+  log_stage("make_tcp_link_begin");
   auto lctx = MakeTcpLink(cl_sender_addr.getValue(), cl_sender_port,
-                          cl_receiver_addr.getValue(), cl_receiver_port,
-                          cl_rank.getValue());
+                          cl_receiver_addr.getValue(), cl_receiver_port, rank);
+  log_stage("make_tcp_link_end");
   auto ctx = std::make_shared<mcpsi::Context>(lctx);
+  log_stage("context_created");
 
+  log_stage("setup_context_begin");
   auto setup_begin = Snapshot(ctx);
   auto setup_time_begin = std::chrono::high_resolution_clock::now();
   mcpsi::SetupContext(ctx, true);
   auto setup_time_end = std::chrono::high_resolution_clock::now();
   auto setup_end = Snapshot(ctx);
+  log_stage("setup_context_end");
 
+  log_stage("triple_generation_begin");
   auto triple_begin = Snapshot(ctx);
   auto triple_time_begin = std::chrono::high_resolution_clock::now();
 
@@ -272,6 +295,7 @@ int main(int argc, char** argv) {
 
   auto triple_time_end = std::chrono::high_resolution_clock::now();
   auto triple_end = Snapshot(ctx);
+  log_stage("triple_generation_end");
 
   auto setup_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                       setup_time_end - setup_time_begin)
@@ -292,9 +316,12 @@ int main(int argc, char** argv) {
   std::cout << "note=TrueCorrelation::BdozTriple already runs internal "
                "sacrifice verification (CheckBdozTriple)\n";
 
+  log_stage("dump_begin");
   DumpTriples(cl_triples_out.getValue(), cl_rank.getValue(), local_triples);
   DumpKey(cl_key_out.getValue(), cl_rank.getValue(), local_key);
+  log_stage("dump_end");
 
+  log_stage("verify_begin");
   auto verify_begin = std::chrono::high_resolution_clock::now();
   auto remote_triples = ExchangeBdozTy(ctx, local_triples);
   auto remote_key = ExchangePTy(ctx, local_key);
@@ -308,8 +335,10 @@ int main(int argc, char** argv) {
   auto verify_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                        verify_end - verify_begin)
                        .count();
+  log_stage("verify_end");
   std::cout << "verify_ms=" << verify_ms << '\n';
   std::cout << "verified=true\n";
+  log_stage("run_end");
 
   return 0;
 }
